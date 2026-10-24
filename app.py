@@ -18,7 +18,7 @@ st.set_page_config(
 
 # Header Section
 st.markdown('<p style="font-size: 28px; font-weight: 800; color: #38BDF8; text-align: center; letter-spacing: 1px; margin-top: 10px; margin-bottom: 2px;">⚡ ALPHA-PSX AI | QUANTITATIVE TERMINAL</p>', unsafe_allow_html=True)
-st.markdown(f'<p style="font-size: 13px; color: #94A3B8; text-align: center; margin-bottom: 30px; text-transform: uppercase; letter-spacing: 0.5px;">Pakistan Stock Exchange (PSX) • Advanced MACD/RSI Engine & Sector Analytics • Live Sync: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>', unsafe_allow_html=True)
+st.markdown(f'<p style="font-size: 13px; color: #94A3B8; text-align: center; margin-bottom: 30px; text-transform: uppercase; letter-spacing: 0.5px;">Pakistan Stock Exchange (PSX) • Full Market Coverage (500+ Equities) • Advanced MACD/RSI Engine • Live Sync: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>', unsafe_allow_html=True)
 
 # Helper Function: Calculate RSI
 def calculate_rsi(series, period=14):
@@ -54,29 +54,29 @@ else:
     day_trading_list = []
     all_stocks_summary = []
     
-    # Sector Mapping Dictionary for PSX Giants
+    # Sector Mapping Dictionary for PSX Giants & General Categories
     sector_mapping = {
-        'FFC': 'Fertilizer', 'ENGRO': 'Fertilizer',
-        'MEBL': 'Commercial Banks', 'MCB': 'Commercial Banks', 'UBL': 'Commercial Banks',
-        'OGDC': 'Oil & Gas Exploration', 'PPL': 'Oil & Gas Exploration', 'MARI': 'Oil & Gas Exploration',
-        'LUCK': 'Cement', 'DGKC': 'Cement',
-        'HUBC': 'Power Generation',
-        'PSO': 'Oil & Gas Marketing',
-        'SYS': 'Technology & Communication',
-        'NESTLE': 'Food & Personal Care',
-        'AGL': 'Automobile & Assembler',
-        'AIRLINK': 'Technology & Communication'
+        'FFC': 'Fertilizer', 'ENGRO': 'Fertilizer', 'EFERT': 'Fertilizer', 'FATIMA': 'Fertilizer',
+        'MEBL': 'Commercial Banks', 'MCB': 'Commercial Banks', 'UBL': 'Commercial Banks', 'HBL': 'Commercial Banks', 'AABL': 'Commercial Banks', 'BAHL': 'Commercial Banks',
+        'OGDC': 'Oil & Gas Exploration', 'PPL': 'Oil & Gas Exploration', 'MARI': 'Oil & Gas Exploration', 'POL': 'Oil & Gas Exploration',
+        'LUCK': 'Cement', 'DGKC': 'Cement', 'CHCC': 'Cement', 'PIOC': 'Cement', 'ACPL': 'Cement',
+        'HUBC': 'Power Generation', 'KAPCO': 'Power Generation', 'NCPL': 'Power Generation',
+        'PSO': 'Oil & Gas Marketing', 'SHEL': 'Oil & Gas Marketing', 'APL': 'Oil & Gas Marketing',
+        'SYS': 'Technology & Communication', 'TRG': 'Technology & Communication', 'AVN': 'Technology & Communication', 'OCTOPUS': 'Technology & Communication',
+        'NESTLE': 'Food & Personal Care', 'NATF': 'Food & Personal Care', 'UNITY': 'Food & Personal Care',
+        'AGL': 'Automobile & Assembler', 'INTH': 'Automobile & Assembler', 'MTL': 'Automobile & Assembler',
+        'AIRLINK': 'Technology & Communication', 'TPL': 'Technology & Communication'
     }
     
-    # Strict Fundamental Ranking Hierarchy for Blue-Chips
+    # Fundamental Ranking Hierarchy for Key Market Drivers
     blue_chip_hierarchy = {
         'FFC': 1, 'MEBL': 2, 'OGDC': 3, 'LUCK': 4, 'MCB': 5, 
         'UBL': 6, 'MARI': 7, 'ENGRO': 8, 'HUBC': 9, 'PPL': 10, 
-        'PSO': 11, 'SYS': 12, 'DGKC': 13, 'NESTLE': 14
+        'PSO': 11, 'SYS': 12, 'DGKC': 13, 'NESTLE': 14, 'HBL': 15, 'POL': 16
     }
     
     for symbol, group in df.groupby('Symbol'):
-        if len(group) < 10:
+        if len(group) < 5:  # Minimum data points threshold for calculation
             continue
         
         # Calculate Technical Metrics (RSI & MACD)
@@ -89,24 +89,17 @@ else:
         
         macd_trend = "📈 Bullish Crossover" if latest_macd > latest_signal else "📉 Bearish/Neutral"
             
-        avg_volume = group['Volume'].iloc[:-1].mean()
+        avg_volume = group['Volume'].iloc[:-1].mean() if len(group) > 1 else group['Volume'].iloc[-1]
         latest_volume = group['Volume'].iloc[-1]
         latest_close = group['Close'].iloc[-1]
-        prev_close = group['Close'].iloc[-2]
-        date_str = str(group['Date'].iloc[-1])
+        prev_close = group['Close'].iloc[-2] if len(group) > 1 else latest_close
         
-        rank_score = blue_chip_hierarchy.get(symbol, 99)
+        rank_score = blue_chip_hierarchy.get(symbol, 999)
         is_bc = 1 if symbol in blue_chip_hierarchy else 0
-        stock_sector = sector_mapping.get(symbol, 'Other Sectors')
+        stock_sector = sector_mapping.get(symbol, 'General / Other Sectors')
         
-        rsi_status = "🟢 Neutral/Bullish"
-        if latest_rsi > 70:
-            rsi_status = "🔴 Overbought"
-        elif latest_rsi < 30:
-            rsi_status = "🟢 Oversold (Buy)"
-            
         all_stocks_summary.append({
-            'Rank': rank_score if is_bc == 1 else 999,
+            'Rank': rank_score,
             'Symbol': symbol,
             'Sector': stock_sector,
             'Latest Close (PKR)': round(latest_close, 2),
@@ -116,15 +109,15 @@ else:
             'is_blue_chip': is_bc
         })
 
-        # Next-Day Breakout Logic with MACD/RSI Confirmation
-        if avg_volume > 10000 and latest_volume > (1.4 * avg_volume) and latest_close > prev_close:
-            vol_ratio = latest_volume / avg_volume
-            price_change_pct = ((latest_close - prev_close) / prev_close) * 100
-            confidence = min(round(72 + (vol_ratio * 5.0) + (price_change_pct * 0.5), 1), 96.0)
+        # Breakout Screening Logic
+        if avg_volume > 10000 and latest_volume > (1.3 * avg_volume) and latest_close > prev_close:
+            vol_ratio = latest_volume / (avg_volume if avg_volume > 0 else 1)
+            price_change_pct = ((latest_close - prev_close) / (prev_close if prev_close > 0 else 1)) * 100
+            confidence = min(round(72 + (vol_ratio * 4.5) + (price_change_pct * 0.5), 1), 97.0)
             if latest_macd > latest_signal:
-                confidence = min(confidence + 3.0, 98.0) # Bonus for MACD Bullish
+                confidence = min(confidence + 3.0, 98.0)
                 
-            upside = round(min(vol_ratio * 3.2, 16.0), 1)
+            upside = round(min(vol_ratio * 3.0, 15.0), 1)
             
             breakout_list.append({
                 'Symbol': symbol,
@@ -138,10 +131,10 @@ else:
                 'raw_conf': confidence
             })
 
-        # Day Trading Logic
-        if avg_volume >= 500000 and latest_volume > (1.2 * avg_volume) and latest_close > prev_close:
-            vol_ratio = latest_volume / avg_volume
-            price_change_pct = ((latest_close - prev_close) / prev_close) * 100
+        # Day Trading Screening Logic
+        if avg_volume >= 200000 and latest_volume > (1.2 * avg_volume) and latest_close > prev_close:
+            vol_ratio = latest_volume / (avg_volume if avg_volume > 0 else 1)
+            price_change_pct = ((latest_close - prev_close) / (prev_close if prev_close > 0 else 1)) * 100
             dt_confidence = min(round(75 + (vol_ratio * 4) + (price_change_pct * 0.6), 1), 97.0)
             
             target_price = round(latest_close * 1.03, 2)
@@ -162,32 +155,33 @@ else:
     breakout_list = sorted(breakout_list, key=lambda x: x['raw_conf'], reverse=True)
     day_trading_list = sorted(day_trading_list, key=lambda x: x['raw_score'], reverse=True)
 
-    # Classy Sidebar Navigation
+    # Sidebar Navigation
     st.sidebar.markdown("### 🎛️ Terminal Control")
     st.sidebar.markdown("---")
     
     selected_tab = st.sidebar.radio(
         "Navigation Menu",
-        ["⚡ Intraday Day Trading", "📊 Next-Day Breakout Signals", "🏛️ Long-Term Blue-Chips", "🏢 Sector Breakdown Analytics", "🔍 Stock Technical Inspector"],
+        ["⚡ Intraday Day Trading", "📊 Next-Day Breakout Signals", "🏛️ Core Market Leaders", "🏢 Full Sector Analytics", "🔍 All Stock Inspector"],
         label_visibility="collapsed"
     )
     
     st.sidebar.markdown("---")
-    st.sidebar.info("💡 System Status: Advanced MACD & RSI institutional momentum engines active.")
+    total_listed = len(all_stocks_summary)
+    st.sidebar.info(f"💡 System Active: Tracking {total_listed} Active PSX Equities.")
 
     if selected_tab == "⚡ Intraday Day Trading":
-        st.subheader("⚡ High-Precision Day Trading Signals (MACD & Liquidity Filter)")
-        st.markdown("Screens liquid stocks with active volume surges, reinforced by MACD crossover trend confirmation.")
+        st.subheader("⚡ High-Precision Day Trading Signals")
+        st.markdown("Screens liquid stocks across the full market experiencing active volume surges and positive momentum.")
         
         if day_trading_list:
             dt_df = pd.DataFrame(day_trading_list).drop(columns=['raw_score'])
             st.dataframe(dt_df, width=1500, hide_index=True)
         else:
-            st.info("ℹ️ Day Trading Status: Market is currently in normal accumulation state. High-liquidity setups will trigger during active volume surges.")
+            st.info("ℹ️ Day Trading Status: Market is currently in normal accumulation state.")
 
     elif selected_tab == "📊 Next-Day Breakout Signals":
-        st.subheader("📊 Next-Day High-Probability Breakout Watchlist (MACD Powered)")
-        st.markdown("Predictive screening using closing volume accumulation, RSI, and MACD trend direction.")
+        st.subheader("📊 Next-Day High-Probability Breakout Watchlist")
+        st.markdown("Predictive screening across 500+ equities using closing volume accumulation, RSI, and MACD trend direction.")
         
         if breakout_list:
             breakout_df = pd.DataFrame(breakout_list).drop(columns=['raw_conf'])
@@ -195,15 +189,15 @@ else:
         else:
             st.info("ℹ️ Market State Notice: No heavy accumulation breakouts flagged in latest closing data.")
 
-    elif selected_tab == "🏛️ Long-Term Blue-Chips":
-        st.subheader("🏛️ Long-Term Core Investment Portfolio & Technicals")
-        st.markdown("Elite blue-chip selection backed by fundamental hierarchy, RSI, and MACD trend status.")
+    elif selected_tab == "🏛️ Core Market Leaders":
+        st.subheader("🏛️ Core Market Leaders & Blue-Chip Technicals")
+        st.markdown("Institutional portfolio view showing fundamental leaders and key index movers.")
         
         if all_stocks_summary:
             summary_df = pd.DataFrame(all_stocks_summary)
             summary_df = summary_df.sort_values(by=['is_blue_chip', 'Rank'], ascending=[False, True]).drop(columns=['is_blue_chip', 'Rank'])
             
-            st.dataframe(summary_df.head(15), width=1500, hide_index=True)
+            st.dataframe(summary_df.head(20), width=1500, hide_index=True)
             
             def generate_pdf_report(data_df):
                 buffer = io.BytesIO()
@@ -218,11 +212,11 @@ else:
                     'SubTitleStyle', parent=styles['Normal'], fontName='Helvetica', fontSize=9, textColor=colors.HexColor('#4A5568'), alignment=1
                 )
                 
-                elements.append(Paragraph("AlphaPSX AI - Long-Term Blue-Chip Portfolio Report", title_style))
-                elements.append(Paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Pakistan Stock Exchange (PSX)", subtitle_style))
+                elements.append(Paragraph("AlphaPSX AI - Market Intelligence & Leaders Report", title_style))
+                elements.append(Paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | PSX Full Coverage", subtitle_style))
                 elements.append(Spacer(1, 15))
                 
-                table_data = [list(data_df.columns)] + data_df.head(15).values.tolist()
+                table_data = [list(data_df.columns)] + data_df.head(20).values.tolist()
                 t = Table(table_data, colWidths=[80, 110, 110, 90, 80, 80])
                 t.setStyle(TableStyle([
                     ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1A365D')),
@@ -241,7 +235,7 @@ else:
                 
                 elements.append(t)
                 elements.append(Spacer(1, 15))
-                elements.append(Paragraph("Disclaimer: Institutional blue-chip portfolio based on quantitative fundamental hierarchy.", subtitle_style))
+                elements.append(Paragraph("Disclaimer: Quantitative portfolio metrics generated via AlphaPSX AI Engine.", subtitle_style))
                 
                 doc.build(elements)
                 buffer.seek(0)
@@ -249,34 +243,31 @@ else:
 
             pdf_data = generate_pdf_report(summary_df)
             st.download_button(
-                label="📥 Download Professional Portfolio PDF",
+                label="📥 Download Market Leaders PDF Report",
                 data=pdf_data,
-                file_name="AlphaPSX_BlueChip_Portfolio.pdf",
+                file_name="AlphaPSX_Market_Report.pdf",
                 mime="application/pdf"
             )
-        else:
-            st.warning("No portfolio data available.")
 
-    elif selected_tab == "🏢 Sector Breakdown Analytics":
-        st.subheader("🏢 Sector Breakdown & Technical Trend Analytics")
-        st.markdown("Filter companies by sectors with integrated MACD trend and RSI signals.")
+    elif selected_tab == "🏢 Full Sector Analytics":
+        st.subheader("🏢 Full Sector Breakdown Analytics")
+        st.markdown("Filter all companies by sectors or general market segments.")
         
         if all_stocks_summary:
             summary_df = pd.DataFrame(all_stocks_summary).drop(columns=['is_blue_chip', 'Rank'])
-            unique_sectors = summary_df['Sector'].unique()
+            unique_sectors = sorted(summary_df['Sector'].unique())
             
             selected_sector = st.selectbox("Select Target Sector", unique_sectors)
             sector_filtered_df = summary_df[summary_df['Sector'] == selected_sector]
             
-            st.write(f"### Companies in **{selected_sector}** Sector")
+            st.write(f"### Companies in **{selected_sector}** ({len(sector_filtered_df)} Found)")
             st.dataframe(sector_filtered_df, width=1500, hide_index=True)
-        else:
-            st.warning("No sector data available.")
 
-    elif selected_tab == "🔍 Stock Technical Inspector":
-        st.subheader("🔍 Individual Stock Technical Inspector (MACD & RSI)")
-        all_symbols = df['Symbol'].unique()
-        selected_stock = st.selectbox("Select Target Stock Symbol", all_symbols)
+    elif selected_tab == "🔍 All Stock Inspector":
+        st.subheader("🔍 All Stock Technical Inspector")
+        all_symbols = sorted(df['Symbol'].unique())
+        st.write(f"Total Available Symbols: **{len(all_symbols)}**")
+        selected_stock = st.selectbox("Select or Type Stock Symbol", all_symbols)
         
         stock_data = df[df['Symbol'] == selected_stock]
         if not stock_data.empty:
