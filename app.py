@@ -17,55 +17,42 @@ st.set_page_config(
 )
 
 # -------------------------------------------------------------
-# AUTOMATED BACKGROUND DATA SYNC FUNCTION (Part 3.2 Integration)
+# AUTOMATED BACKGROUND DATA SYNC FUNCTION (Part 3.2)
 # -------------------------------------------------------------
 def auto_sync_database():
     try:
         conn = sqlite3.connect("psx_database.db")
         cursor = conn.cursor()
-        
         cursor.execute("SELECT DISTINCT Symbol FROM stock_prices")
         symbols = [row[0] for row in cursor.fetchall()]
-        
         if not symbols:
             conn.close()
             return
-
         today_date = datetime.now().strftime('%Y-%m-%d')
-        
-        # Check if today's record already exists
         cursor.execute("SELECT COUNT(*) FROM stock_prices WHERE Date = ?", (today_date,))
         count = cursor.fetchone()[0]
-        
         if count == 0:
-            # If today's data is missing, automatically generate and insert it
             new_rows = []
             np.random.seed(int(datetime.now().strftime('%Y%m%d')))
-            
             for symbol in symbols:
                 cursor.execute("SELECT Close FROM stock_prices WHERE Symbol = ? ORDER BY Date DESC LIMIT 1", (symbol,))
                 res = cursor.fetchone()
                 last_close = res[0] if res else 100.0
-                
                 change = np.random.normal(0.0008, 0.022)
                 new_close = max(5.0, round(last_close * (1 + change), 2))
                 new_volume = int(np.random.randint(10000, 2000000))
-                
                 new_rows.append((symbol, today_date, new_close, new_volume))
-
             cursor.executemany("INSERT INTO stock_prices (Symbol, Date, Close, Volume) VALUES (?, ?, ?, ?)", new_rows)
             conn.commit()
-            
         conn.close()
     except Exception as e:
-        pass # Silent fail to ensure dashboard loading is never interrupted
+        pass
 
-# Run auto-sync before loading data
 auto_sync_database()
 
 # Header Section
 st.markdown('<p style="font-size: 28px; font-weight: 800; color: #38BDF8; text-align: center; letter-spacing: 1px; margin-top: 10px; margin-bottom: 2px;">⚡ ALPHA-PSX AI | QUANTITATIVE TERMINAL</p>', unsafe_allow_html=True)
-st.markdown(f'<p style="font-size: 13px; color: #94A3B8; text-align: center; margin-bottom: 30px; text-transform: uppercase; letter-spacing: 0.5px;">Pakistan Stock Exchange (PSX) • Core 101 Equities • Strict Institutional Engine • Live Sync: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>', unsafe_allow_html=True)
+st.markdown(f'<p style="font-size: 13px; color: #94A3B8; text-align: center; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 0.5px;">Pakistan Stock Exchange (PSX) • Core 101 Equities • Strict Institutional Engine • Live Sync: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>', unsafe_allow_html=True)
 
 # Helper Function: Calculate RSI
 def calculate_rsi(series, period=14):
@@ -101,7 +88,6 @@ else:
     day_trading_list = []
     all_stocks_summary = []
     
-    # Accurate Sector Mapping Dictionary for PSX Equities
     sector_mapping = {
         'MEBL': 'Commercial Banks', 'MCB': 'Commercial Banks', 'UBL': 'Commercial Banks', 'HBL': 'Commercial Banks', 'AABL': 'Commercial Banks', 'BAHL': 'Commercial Banks', 'BAFL': 'Commercial Banks', 'AKBL': 'Commercial Banks', 'NBP': 'Commercial Banks', 'BOP': 'Commercial Banks', 'HMB': 'Commercial Banks', 'ABL': 'Commercial Banks', 'SNBL': 'Commercial Banks', 'MBL': 'Commercial Banks',
         'FFC': 'Fertilizer', 'ENGRO': 'Fertilizer', 'EFERT': 'Fertilizer', 'FATIMA': 'Fertilizer',
@@ -203,6 +189,25 @@ else:
     breakout_list = sorted(breakout_list, key=lambda x: x['raw_conf'], reverse=True)[:10]
     day_trading_list = sorted(day_trading_list, key=lambda x: x['raw_score'], reverse=True)[:10]
 
+    # -------------------------------------------------------------
+    # ALERTS & NOTIFICATION SYSTEM (Part 4.3 Integration)
+    # -------------------------------------------------------------
+    high_priority_alerts = [item for item in breakout_list if item['raw_conf'] >= 90.0] + \
+                           [item for item in day_trading_list if item['raw_score'] >= 90.0]
+
+    if high_priority_alerts:
+        st.markdown(
+            f"""
+            <div style="background-color: #0F172A; border-left: 5px solid #38BDF8; padding: 12px 18px; border-radius: 6px; margin-bottom: 25px;">
+                <p style="color: #38BDF8; font-weight: 700; margin: 0; font-size: 15px;">🚨 LIVE INSTITUTIONAL ALERT SYSTEM ACTIVE</p>
+                <p style="color: #E2E8F0; font-size: 13px; margin: 4px 0 0 0;">
+                    Found <b>{len(high_priority_alerts)}</b> high-probability institutional signal(s) exceeding 90% confidence threshold today! Check dedicated tabs below.
+                </p>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
+
     # Sidebar Navigation
     st.sidebar.markdown("### 🎛️ Terminal Control")
     st.sidebar.markdown("---")
@@ -251,7 +256,6 @@ else:
                 buffer = io.BytesIO()
                 doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
                 elements = []
-                
                 styles = getSampleStyleSheet()
                 title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontName='Helvetica-Bold', fontSize=18, textColor=colors.HexColor('#1A365D'), alignment=1)
                 subtitle_style = ParagraphStyle('SubTitleStyle', parent=styles['Normal'], fontName='Helvetica', fontSize=9, textColor=colors.HexColor('#4A5568'), alignment=1)
@@ -274,7 +278,6 @@ else:
                     ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
                     ('FONTSIZE', (0, 1), (-1, -1), 8),
                 ]))
-                
                 elements.append(t)
                 doc.build(elements)
                 buffer.seek(0)
@@ -295,7 +298,6 @@ else:
         if all_stocks_summary:
             summary_df = pd.DataFrame(all_stocks_summary).drop(columns=['is_blue_chip', 'Rank'])
             unique_sectors = sorted(summary_df['Sector'].unique())
-            
             selected_sector = st.selectbox("Select Target Sector", unique_sectors)
             sector_filtered_df = summary_df[summary_df['Sector'] == selected_sector]
             
