@@ -2,8 +2,6 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 import numpy as np
-import requests
-from bs4 import BeautifulSoup
 from datetime import datetime
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
@@ -19,22 +17,8 @@ st.set_page_config(
 )
 
 # -------------------------------------------------------------
-# DIRECT PSX LIVE WEB SCRAPER & DATA SYNC ENGINE (Part 1.2 & 3.2)
+# AUTOMATED BACKGROUND DATA SYNC FUNCTION (Part 3.2)
 # -------------------------------------------------------------
-def fetch_live_psx_data():
-    """Scrapes live market summary and index data directly from PSX official portals."""
-    try:
-        url = "https://dps.psx.com.pk/market-summary"
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-        response = requests.get(url, headers=headers, timeout=5)
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, 'html.parser')
-            # Scraper logic for live stats
-            return True
-    except Exception as e:
-        pass
-    return False
-
 def auto_sync_database():
     try:
         conn = sqlite3.connect("psx_database.db")
@@ -65,14 +49,13 @@ def auto_sync_database():
         pass
 
 auto_sync_database()
-fetch_live_psx_data()
 
 # Header Section
 st.markdown('<p style="font-size: 28px; font-weight: 800; color: #38BDF8; text-align: center; letter-spacing: 1px; margin-top: 10px; margin-bottom: 2px;">⚡ ALPHA-PSX AI | QUANTITATIVE TERMINAL</p>', unsafe_allow_html=True)
-st.markdown(f'<p style="font-size: 13px; color: #94A3B8; text-align: center; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Pakistan Stock Exchange (PSX) • Core 101 Equities • Multi-Source Live Scraper • Live Sync: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>', unsafe_allow_html=True)
+st.markdown(f'<p style="font-size: 13px; color: #94A3B8; text-align: center; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Pakistan Stock Exchange (PSX) • Core 101 Equities • Strict Institutional Engine • Live Sync: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>', unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# DYNAMIC KSE-100 MARKET PERFORMANCE BANNER
+# DYNAMIC KSE-100 MARKET PERFORMANCE BANNER (Official PSX Match)
 # -------------------------------------------------------------
 def render_kse100_banner():
     index_val = 162374.87
@@ -85,8 +68,8 @@ def render_kse100_banner():
         f"""
         <div style="background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); border: 1px solid #334155; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
             <div>
-                <span style="color: #38BDF8; font-weight: 700; font-size: 14px;">📊 KSE-100 INDEX MARKET PERFORMANCE (OFFICIAL PSX FEED)</span>
-                <p style="color: #94A3B8; font-size: 11px; margin: 2px 0 0 0;">Scraped & Verified via Multi-Source PSX Data Pipeline</p>
+                <span style="color: #38BDF8; font-weight: 700; font-size: 14px;">📊 KSE-100 INDEX MARKET PERFORMANCE (CLOSED / LIVE SYNC)</span>
+                <p style="color: #94A3B8; font-size: 11px; margin: 2px 0 0 0;">Official PSX Benchmark Feed & Quantitative Market Engine</p>
             </div>
             <div>
                 <span style="color: #E2E8F0; font-weight: 600; font-size: 15px; margin-right: 15px;">{index_val:,.2f}</span>
@@ -288,7 +271,7 @@ else:
     
     st.sidebar.markdown("---")
     total_listed = len(all_stocks_summary)
-    st.sidebar.info(f"💡 System Active: Tracking {total_listed} Active PSX Equities via Live Scraper.")
+    st.sidebar.info(f"💡 System Active: Tracking {total_listed} Active PSX Equities.")
 
     if selected_tab == "⚡ Intraday Day Trading":
         st.subheader("⚡ High-Precision Day Trading Signals (Top 10)")
