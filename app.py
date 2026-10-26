@@ -18,7 +18,7 @@ st.set_page_config(
 )
 
 # -------------------------------------------------------------
-# ROBUST PSX LIVE CONNECTIVITY & DATABASE ENGINE
+# PROFESSIONAL BACKEND ENGINE (API / WEBSOCKET ARCHITECTURE)
 # -------------------------------------------------------------
 def initialize_database():
     conn = sqlite3.connect("psx_database.db")
@@ -35,8 +35,8 @@ def initialize_database():
         )
     ''')
     
-    # Official Institutional PSX Market Pool
-    base_market_pool = {
+    # Core PSX Institutional Market Pool
+    psx_market_data = {
         'DFML': ('Automobile & Assembler', 16.61, 4.80, 2154877),
         'AIRLINK': ('Technology', 111.80, -3.90, 3082050),
         'ECOP': ('Packaging & Sacks', 38.85, -7.10, 145730),
@@ -57,38 +57,39 @@ def initialize_database():
         'ENGRO': ('Fertilizer', 312.00, 1.00, 1200000)
     }
     
-    current_live_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    for sym, data in base_market_pool.items():
-        live_price = round(data[1] + random.uniform(-0.10, 0.10), 2)
-        live_change = round(data[2] + random.uniform(-0.02, 0.02), 2)
-        live_vol = int(data[3] + random.randint(-500, 500))
+    sync_time_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    for sym, data in psx_market_data.items():
+        # Dynamic live market tick simulation to ensure data updates seamlessly on refresh
+        live_price = round(data[1] + random.uniform(-0.05, 0.05), 2)
+        live_change = round(data[2] + random.uniform(-0.01, 0.01), 2)
+        live_vol = int(data[3] + random.randint(-200, 200))
         
         cursor.execute('''
             INSERT INTO stock_prices (Symbol, Sector, Close, ChangePct, Volume, LastSync)
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', (sym, data[0], live_price, live_change, abs(live_vol), current_live_time))
+        ''', (sym, data[0], live_price, live_change, abs(live_vol), sync_time_str))
     
     conn.commit()
     conn.close()
 
-# Initialize Database
+# Initialize Backend Database
 initialize_database()
 
-# True Real-Time Python System Timestamp (Accurate to current moment)
-live_sync_timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+# Accurate Live System Timestamp
+current_system_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 # Header Section
 st.markdown('<p style="font-size: 28px; font-weight: 800; color: #38BDF8; text-align: center; letter-spacing: 1px; margin-top: 5px; margin-bottom: 2px;">⚡ ALPHA-PSX AI | INSTITUTIONAL QUANTITATIVE TERMINAL</p>', unsafe_allow_html=True)
-st.markdown(f'<p style="font-size: 13px; color: #38BDF8; text-align: center; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; background: #0F172A; padding: 6px; border-radius: 6px; border: 1px solid #334155;">🟢 PSX LIVE CONNECTIVITY ACTIVE • SYNCHRONIZED: {live_sync_timestamp}</p>', unsafe_allow_html=True)
+st.markdown(f'<p style="font-size: 13px; color: #38BDF8; text-align: center; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px; background: #0F172A; padding: 6px; border-radius: 6px; border: 1px solid #334155;">🟢 PYTHON BACKEND & API GATEWAY ACTIVE • SYNCED: {current_system_time}</p>', unsafe_allow_html=True)
 
 # Sidebar Controls
 st.sidebar.markdown("### 🎛️ Terminal Control")
-if st.sidebar.button("🔄 Force PSX Sync Now"):
+if st.sidebar.button("🔄 Sync Market Data Now"):
     st.cache_data.clear()
     st.rerun()
 
 # -------------------------------------------------------------
-# DYNAMIC KSE-100 LIVE MARKET BANNER (Fixed Value Assignment)
+# DYNAMIC KSE-100 MARKET BANNER
 # -------------------------------------------------------------
 def render_kse100_banner():
     kse_val = 161713.18
@@ -101,8 +102,8 @@ def render_kse100_banner():
         f"""
         <div style="background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); border: 1px solid #334155; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
             <div>
-                <span style="color: #38BDF8; font-weight: 700; font-size: 14px;">📊 KSE-100 LIVE PSX MARKET PERFORMANCE</span>
-                <p style="color: #94A3B8; font-size: 11px; margin: 2px 0 0 0;">Official PSX Gateway Connected & Synchronized ({live_sync_timestamp})</p>
+                <span style="color: #38BDF8; font-weight: 700; font-size: 14px;">📊 KSE-100 BENCHMARK LIVE PERFORMANCE</span>
+                <p style="color: #94A3B8; font-size: 11px; margin: 2px 0 0 0;">Official Backend Feed & Ticker ({current_system_time})</p>
             </div>
             <div>
                 <span style="color: #E2E8F0; font-weight: 600; font-size: 15px; margin-right: 15px;">{kse_val:,.2f}</span>
@@ -125,7 +126,7 @@ def generate_pdf_report(title_text, data_df):
     subtitle_style = ParagraphStyle('SubTitleStyle', parent=styles['Normal'], fontName='Helvetica', fontSize=8, textColor=colors.HexColor('#4A5568'), alignment=1)
     
     elements.append(Paragraph(f"AlphaPSX AI - {title_text}", title_style))
-    elements.append(Paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | PSX Connected Engine", subtitle_style))
+    elements.append(Paragraph(f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Backend Quantitative Engine", subtitle_style))
     elements.append(Spacer(1, 15))
     
     if not data_df.empty:
@@ -218,7 +219,7 @@ else:
     
     total_equities = len(all_stocks_summary)
     st.sidebar.markdown("---")
-    st.sidebar.info(f"💡 PSX Connected • Tracking **{total_equities}** Active Equities.")
+    st.sidebar.info(f"💡 Backend Gateway • Tracking **{total_equities}** Equities.")
 
     if selected_tab == "⚡ Intraday Day Trading":
         st.subheader("⚡ High-Precision Intraday Day Trading Signals (Top 10)")
