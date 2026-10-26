@@ -9,20 +9,15 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 import io
 
-# Page Configuration & 5-Second Auto-Refresh Interval
+# Page Configuration (No Full-Page Blinking Meta Tags)
 st.set_page_config(
     page_title="AlphaPSX AI - Institutional Quantitative Terminal",
     page_icon="⚡",
     layout="wide"
 )
 
-# Automated 5-Second Live Refresh Meta Injection
-st.markdown("""
-    <meta http-equiv="refresh" content="5">
-""", unsafe_allow_html=True)
-
 # -------------------------------------------------------------
-# REAL-TIME INSTITUTIONAL PSX DATABASE & LIVE ENGINE
+# REAL-TIME INSTITUTIONAL PSX DATABASE & ENGINE
 # -------------------------------------------------------------
 def initialize_database():
     conn = sqlite3.connect("psx_database.db")
@@ -90,12 +85,12 @@ def initialize_database():
 
 initialize_database()
 
-# Accurate Live Synchronized Timestamp (Always fetching true system time)
+# Accurate Live Synchronized Timestamp (Real-time System Clock)
 live_sync_timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 # Header Section
 st.markdown('<p style="font-size: 28px; font-weight: 800; color: #38BDF8; text-align: center; letter-spacing: 1px; margin-top: 10px; margin-bottom: 2px;">⚡ ALPHA-PSX AI | INSTITUTIONAL QUANTITATIVE TERMINAL</p>', unsafe_allow_html=True)
-st.markdown(f'<p style="font-size: 13px; color: #94A3B8; text-align: center; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Pakistan Stock Exchange (PSX) • Real-Time Live Terminal • Auto-Sync (5s) • Synchronized: {live_sync_timestamp}</p>', unsafe_allow_html=True)
+st.markdown(f'<p style="font-size: 13px; color: #94A3B8; text-align: center; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;">Pakistan Stock Exchange (PSX) • Stable Real-Time Terminal • Synchronized: {live_sync_timestamp}</p>', unsafe_allow_html=True)
 
 # Sidebar Controls
 st.sidebar.markdown("### 🎛️ Terminal Control")
@@ -116,7 +111,7 @@ def render_kse100_banner():
         <div style="background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); border: 1px solid #334155; padding: 12px 20px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
             <div>
                 <span style="color: #38BDF8; font-weight: 700; font-size: 14px;">📊 KSE-100 LIVE PSX MARKET PERFORMANCE</span>
-                <p style="color: #94A3B8; font-size: 11px; margin: 2px 0 0 0;">Official Live Feed & Ticker (Auto-Synced: {live_sync_timestamp})</p>
+                <p style="color: #94A3B8; font-size: 11px; margin: 2px 0 0 0;">Official Live Feed & Ticker (Synced: {live_sync_timestamp})</p>
             </div>
             <div>
                 <span style="color: #E2E8F0; font-weight: 600; font-size: 15px; margin-right: 15px;">{kse_val:,.2f}</span>
@@ -235,11 +230,11 @@ else:
     
     total_equities = len(all_stocks_summary)
     st.sidebar.markdown("---")
-    st.sidebar.info(f"💡 System Auto-Syncing (5s) • Tracking **{total_equities}** Active PSX Equities.")
+    st.sidebar.info(f"💡 System Stable & Optimized • Tracking **{total_equities}** Active PSX Equities.")
 
     if selected_tab == "⚡ Intraday Day Trading":
         st.subheader("⚡ High-Precision Intraday Day Trading Signals (Top 10)")
-        st.markdown("Strictly filtered top momentum movers with strict +5.5% institutional targets and auto-polling.")
+        st.markdown("Strictly filtered top momentum movers with strict +5.5% institutional targets (Blink-Free Engine).")
         
         # Section 1: Active Running Signals (Top 10)
         st.markdown("### 🟢 Active Running Signals (Live Top 10)")
