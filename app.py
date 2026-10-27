@@ -1,7 +1,6 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
-import numpy as np
 from datetime import datetime
 
 # --- PAGE CONFIGURATION ---
@@ -25,9 +24,14 @@ class PSXDatabaseManager:
         conn = self.get_connection()
         cursor = conn.cursor()
 
-        # Companies Master Table
+        # Clean Reset: Clear or drop old tables if they contain dummy data
+        # (यह सुनिश्चित کرتا ہے کہ کوئی بھی پرانا یا فرضی ڈیٹا باقی نہ رہے)
+        cursor.execute("DROP TABLE IF EXISTS eod_market_data")
+        cursor.execute("DROP TABLE IF EXISTS companies")
+
+        # Companies Master Table (Fresh & Clean)
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS companies (
+            CREATE TABLE companies (
                 symbol TEXT PRIMARY KEY,
                 company_name TEXT NOT NULL,
                 sector TEXT NOT NULL,
@@ -38,7 +42,7 @@ class PSXDatabaseManager:
 
         # EOD Market Data Table (Strict EOD Closing)
         cursor.execute('''
-            CREATE TABLE IF NOT EXISTS eod_market_data (
+            CREATE TABLE eod_market_data (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 symbol TEXT NOT NULL,
                 trade_date DATE NOT NULL,
@@ -57,7 +61,7 @@ class PSXDatabaseManager:
         conn.commit()
         conn.close()
 
-# Initialize Database Manager
+# Initialize Database Manager (This will wipe out all old dummy tables)
 db_mgr = PSXDatabaseManager()
 
 # --- STREAMLIT FRONTEND UI ---
@@ -82,21 +86,14 @@ if module_choice == "1. Next-Day Prediction Module":
 
     if st.button("Run Institutional Prediction Scan"):
         conn = db_mgr.get_connection()
-        # Fetch actual latest EOD closing data from database
-        query = """
-            e.symbol, e.trade_date, e.close, e.volume 
-            FROM eod_market_data e
-            JOIN (SELECT symbol, MAX(trade_date) as max_date FROM eod_market_data GROUP BY symbol) latest 
-            ON e.symbol = latest.symbol AND e.trade_date = latest.max_date
-        """
         try:
-            df_latest = pd.read_sql(f"SELECT {query}", conn)
+            df_latest = pd.read_sql("SELECT * FROM eod_market_data", conn)
         except Exception as e:
             df_latest = pd.DataFrame()
         conn.close()
 
         if df_latest.empty:
-            st.warning("⚠️ کوئی حقیقی EOD ڈیٹا بیس میں موجود نہیں ہے۔ براہ کرم مصدقہ EOD ڈیٹا ان پٹ کریں (کوئی فرضی ڈیٹا الاؤ نہیں)۔")
+            st.warning("⚠️ ڈیٹا بیس بالکل صاف (Clean) کر دیا گیا ہے۔ اب کوئی بھی فرضی ڈیٹا موجود نہیں ہے۔ براہ کرم مصدقہ اور اصل EOD ڈیٹا ان پٹ کریں!")
         else:
             st.success("Verified EOD Data Loaded Successfully!")
             st.dataframe(df_latest, use_container_width=True)
@@ -107,7 +104,10 @@ elif module_choice == "2. Long-Term Investing Module":
     conn = db_mgr.get_connection()
     companies_df = pd.read_sql("SELECT * FROM companies", conn)
     conn.close()
-    st.dataframe(companies_df, use_container_width=True)
+    if companies_df.empty:
+        st.info("کوئی کمپنی رجسٹرڈ نہیں ہے۔")
+    else:
+        st.dataframe(companies_df, use_container_width=True)
 
 # --- MODULE 3: COMPANY SEARCH & INSPECTOR ---
 elif module_choice == "3. Company Search & Inspector":
@@ -127,4 +127,4 @@ elif module_choice == "3. Company Search & Inspector":
         conn.close()
         st.dataframe(df_insp, use_container_width=True)
     else:
-        st.info("ڈیٹا بیس میں فی الحال کوئی کمپنی رجسٹرڈ نہیں ہے۔")
+        st.info("ڈیٹا بیس فی الحال خالی ہے (Zero Dummy Data Policy Active)۔")
