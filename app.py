@@ -3,7 +3,6 @@ import sqlite3
 import pandas as pd
 import numpy as np
 from datetime import datetime
-import yfinance as yf
 from sklearn.ensemble import RandomForestClassifier
 
 # --- PAGE CONFIGURATION ---
@@ -15,7 +14,7 @@ st.set_page_config(
 
 DB_NAME = "psx_institutional_master.db"
 
-class PSXLiveInstitutionalTerminal:
+class PSXManualPortalTerminal:
     def __init__(self, db_name=DB_NAME):
         self.db_name = db_name
         self.initialize_master_database()
@@ -57,60 +56,9 @@ class PSXLiveInstitutionalTerminal:
         conn.commit()
         conn.close()
 
-    def fetch_and_store_live_psx_data(self):
-        """
-        Pulls 100% real historical and EOD data from verified live feeds (Yahoo Finance PSX Tickers).
-        Enforces Zero Dummy Data Policy.
-        """
-        conn = self.get_connection()
-        cursor = conn.cursor()
+terminal = PSXManualPortalTerminal()
 
-        # Core PSX Symbols mapping with Yahoo Finance extensions (.KA)
-        universe = [
-            ("ENGRO", "Engro Corporation", "Fertilizer", "ENGRO.KA"),
-            ("FFC", "Fauji Fertilizer Company", "Fertilizer", "FFC.KA"),
-            ("OGDC", "Oil & Gas Development Company", "Oil & Gas", "OGDC.KA"),
-            ("LUCK", "Lucky Cement Limited", "Cement", "LUCK.KA"),
-            ("MCB", "MCB Bank Limited", "Commercial Banks", "MCB.KA")
-        ]
-
-        for sym, name, sector, yf_ticker in universe:
-            cursor.execute("INSERT OR IGNORE INTO companies (symbol, company_name, sector) VALUES (?, ?, ?)", (sym, name, sector))
-            conn.commit()
-
-            try:
-                # Fetching real historical EOD data (up to several years for ML training)
-                stock_data = yf.download(yf_ticker, period="5y", interval="1d", progress=False)
-                if not stock_data.empty:
-                    # Flatten columns if multi-index
-                    if isinstance(stock_data.columns, pd.MultiIndex):
-                        stock_data.columns = stock_data.columns.get_level_values(0)
-                        
-                    for idx, row in stock_data.iterrows():
-                        trade_date = idx.strftime('%Y-%m-%d')
-                        open_p = float(row['Open']) if pd.notna(row['Open']) else 0.0
-                        high_p = float(row['High']) if pd.notna(row['High']) else 0.0
-                        low_p = float(row['Low']) if pd.notna(row['Low']) else 0.0
-                        close_p = float(row['Close']) if pd.notna(row['Close']) else 0.0
-                        vol = int(row['Volume']) if pd.notna(row['Volume']) else 0
-                        val = vol * close_p
-                        
-                        if close_p > 0:
-                            cursor.execute('''
-                                INSERT OR IGNORE INTO eod_market_data 
-                                (symbol, trade_date, open, high, low, close, volume, traded_value, data_source)
-                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            ''', (sym, trade_date, open_p, high_p, low_p, close_p, vol, val, "PSX_LIVE_VERIFIED"))
-                    conn.commit()
-            except Exception as e:
-                print(f"Error fetching {sym}: {e}")
-
-        conn.close()
-        return True, "لائیو مصدقہ مارکیٹ ڈیٹا کامیابی کے ساتھ فیچ ہو کر ڈیٹا بیس میں محفوظ ہو گیا ہے!"
-
-terminal = PSXLiveInstitutionalTerminal()
-
-# --- STREAMLIT FRONTEND UI ---
+# --- STREAMLIT FRONTEND UI (VERTICAL LAYOUT) ---
 st.sidebar.title("📊 PSX Institutional Terminal")
 st.sidebar.markdown("---")
 module_choice = st.sidebar.radio(
@@ -123,88 +71,147 @@ module_choice = st.sidebar.radio(
 )
 
 st.sidebar.markdown("---")
-st.sidebar.info("System Status: **Live Verified Feed & Zero Dummy Data Active**")
+st.sidebar.info("System Status: **Manual File Portal & Top-10/15 Filter Active**")
 
 # --- MODULE 1: NEXT-DAY PREDICTION ---
 if module_choice == "1. Next-Day Prediction Module":
-    st.title("📈 Live Autonomous Prediction & AI Engine")
-    st.markdown("Real-time EOD ingestion, full historical depth, and Random Forest +5% target probability analysis.")
+    st.title("📈 Institutional Portal & AI Prediction Engine")
+    st.markdown("Upload verified EOD historical files, secure deep archive in database, and run advanced ML target screening.")
+    st.markdown("---")
 
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Sync Live Market EOD Data"):
-            with st.spinner("Connecting to live market feeds and updating archive..."):
-                success, msg = terminal.fetch_and_store_live_psx_data()
-                if success:
-                    st.success(msg)
-
-    with col2:
-        if st.button("Run AI Prediction Scan"):
-            with st.spinner("Running Machine Learning models on verified live history..."):
+    # SECTION 1: FILE UPLOADER PORTAL (Top to Bottom)
+    st.subheader("📁 Step 1: Upload Historical / Daily EOD Data File")
+    st.markdown("اپنا مصدقہ تاریخی یا روزانہ کا EOD ڈیٹا (CSV یا Excel فارمیٹ میں) یہاں اپ لوڈ کریں۔ فائل کے کالمز میں `symbol`, `trade_date`, `open`, `high`, `low`, `close`, `volume` شامل ہونے چاہئیں[span_3](start_span)[span_3](end_span)۔")
+    
+    uploaded_file = st.file_uploader("Choose CSV or Excel file", type=["csv", "xlsx"])
+    
+    if uploaded_file is not None:
+        try:
+            if uploaded_file.name.endswith('.csv'):
+                df_upload = pd.read_csv(uploaded_file)
+            else:
+                df_upload = pd.read_excel(uploaded_file)
+            
+            st.success(f"فائل کامیابی سے پڑھ لی گئی ہے! کل رکارڈز: {len(df_upload)}")
+            
+            if st.button("Save Uploaded Data to Permanent Database"):
                 conn = terminal.get_connection()
-                try:
-                    companies = pd.read_sql("SELECT symbol FROM companies WHERE is_active = 1", conn)
-                except:
-                    companies = pd.DataFrame()
+                cursor = conn.cursor()
+                
+                saved_count = 0
+                for _, row in df_upload.iterrows():
+                    sym = str(row.get('symbol')).upper().strip()
+                    t_date = str(row.get('trade_date'))[:10]
+                    open_p = float(row.get('open', 0))
+                    high_p = float(row.get('high', 0))
+                    low_p = float(row.get('low', 0))
+                    close_p = float(row.get('close', 0))
+                    vol = int(row.get('volume', 0))
+                    val = vol * close_p
+                    
+                    # Ensure company exists in master
+                    cursor.execute("INSERT OR IGNORE INTO companies (symbol, company_name, sector) VALUES (?, ?, ?)", (sym, sym, "General"))
+                    
+                    cursor.execute('''
+                        INSERT OR IGNORE INTO eod_market_data 
+                        (symbol, trade_date, open, high, low, close, volume, traded_value, data_source)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (sym, t_date, open_p, high_p, low_p, close_p, vol, val, "MANUAL_PORTAL_UPLOAD"))
+                    saved_count += 1
+                
+                conn.commit()
+                conn.close()
+                st.success(f"کامیابی کے ساتھ {saved_count} رکارڈز ڈیٹا بیس میں مستقل محفوظ کر دیے گئے ہیں!")
+        except Exception as e:
+            st.error(f"فائل پروسیسنگ میں خرابی: {e}")
 
-                if companies.empty:
-                    st.warning("⚠️ براہ کرم پہلے 'Sync Live Market EOD Data' پر کلک کریں۔")
+    st.markdown("---")
+
+    # SECTION 2: AI PREDICTION SCAN (Top to Bottom)
+    st.subheader("🤖 Step 2: Run AI Prediction & Top 10-15 Screening")
+    st.markdown("ڈیٹا بیس میں موجود تمام کمپنیوں کا تجزیہ کریں اور اگلے دن کے لیے +5% ٹارگٹ والی ٹاپ 10 سے 15 بہترین کمپنیوں کی فہرست حاصل کریں[span_4](start_span)[span_4](end_span)۔")
+
+    if st.button("Run AI Prediction & Filter Top Stocks"):
+        with st.spinner("Running Machine Learning algorithms and filtering top conviction stocks..."):
+            conn = terminal.get_connection()
+            try:
+                companies = pd.read_sql("SELECT symbol FROM companies WHERE is_active = 1", conn)
+            except:
+                companies = pd.DataFrame()
+
+            if companies.empty:
+                st.warning("⚠️ ڈیٹا بیس میں کوئی کمپنی موجود نہیں۔ براہ کرم پہلے اوپر فائل اپ لوڈ کریں۔")
+            else:
+                all_predictions = []
+                for sym in companies['symbol']:
+                    df = pd.read_sql("SELECT * FROM eod_market_data WHERE symbol = ? ORDER BY trade_date ASC", conn, params=(sym,))
+                    if len(df) < 30:
+                        continue
+                    
+                    # Technical Indicators
+                    df['MA20'] = df['close'].rolling(20).mean()
+                    df['MA50'] = df['close'].rolling(50).mean()
+                    
+                    delta = df['close'].diff()
+                    gain = (delta.where(delta > 0, 0)).rolling(14).mean()
+                    loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
+                    rs = gain / loss
+                    df['RSI'] = 100 - (100 / (1 + rs))
+                    
+                    df['Volume_MA20'] = df['volume'].rolling(20).mean()
+                    df['RVOL'] = df['volume'] / df['Volume_MA20']
+                    
+                    # Target: Next day close >= current close * 1.05 (+5%)
+                    df['target'] = (df['close'].shift(-1) >= df['close'] * 1.05).astype(int)
+                    df_clean = df.dropna()
+
+                    if len(df_clean) > 20:
+                        X = df_clean[['close', 'volume', 'RSI', 'RVOL', 'MA20', 'MA50']]
+                        y = df_clean['target']
+                        
+                        model = RandomForestClassifier(n_estimators=100, random_state=42)
+                        model.fit(X, y)
+                        
+                        latest_row = df.iloc[-1]
+                        latest_features = X.tail(1)
+                        prob = float(model.predict_proba(latest_features)[0][1]) * 100
+
+                        current_price = float(latest_row['close'])
+                        target_price = round(current_price * 1.05, 2)
+
+                        all_predictions.append({
+                            "Symbol": sym,
+                            "Latest Date": latest_row['trade_date'],
+                            "Current Price (Rs)": round(current_price, 2),
+                            "Target Price (+5% Rs)": target_price,
+                            "AI Probability (%)": round(prob, 2),
+                            "RSI (14)": round(latest_row['RSI'], 1),
+                            "RVOL": round(latest_row['RVOL'], 2)
+                        })
+                conn.close()
+
+                if all_predictions:
+                    res_df = pd.DataFrame(all_predictions)
+                    # Sort by highest AI Probability and pick Top 10-15
+                    res_df = res_df.sort_values(by="AI Probability (%)", ascending=False).head(15)
+                    res_df['AI Probability (%)'] = res_df['AI Probability (%)'].astype(str) + "%"
+                    res_df['Signal'] = "HIGH CONVICTION BUY"
+                    
+                    st.markdown("---")
+                    st.subheader("🏆 Top High-Probability Prediction Report (Top 15)")
+                    st.success("AI Prediction Scan Completed Successfully!")
+                    st.dataframe(res_df, use_container_width=True)
+                    
+                    # Export/Download Option for Report
+                    csv_data = res_df.to_csv(index=False).encode('utf-8')
+                    st.download_button(
+                        label="📥 Download Prediction Report (CSV/Excel Compatible)",
+                        data=csv_data,
+                        file_name=f"PSX_Top_Predictions_{datetime.today().strftime('%Y-%m-%d')}.csv",
+                        mime="text/csv"
+                    )
                 else:
-                    prediction_results = []
-                    for sym in companies['symbol']:
-                        df = pd.read_sql("SELECT * FROM eod_market_data WHERE symbol = ? ORDER BY trade_date ASC", conn, params=(sym,))
-                        if len(df) < 50:
-                            continue
-                        
-                        # Technical Indicators
-                        df['MA20'] = df['close'].rolling(20).mean()
-                        df['MA50'] = df['close'].rolling(50).mean()
-                        
-                        delta = df['close'].diff()
-                        gain = (delta.where(delta > 0, 0)).rolling(14).mean()
-                        loss = (-delta.where(delta < 0, 0)).rolling(14).mean()
-                        rs = gain / loss
-                        df['RSI'] = 100 - (100 / (1 + rs))
-                        
-                        df['Volume_MA20'] = df['volume'].rolling(20).mean()
-                        df['RVOL'] = df['volume'] / df['Volume_MA20']
-                        
-                        # Target Definition: Next day close >= current close * 1.05 (+5%)
-                        df['target'] = (df['close'].shift(-1) >= df['close'] * 1.05).astype(int)
-                        df_clean = df.dropna()
-
-                        if len(df_clean) > 20:
-                            X = df_clean[['close', 'volume', 'RSI', 'RVOL', 'MA20', 'MA50']]
-                            y = df_clean['target']
-                            
-                            model = RandomForestClassifier(n_estimators=100, random_state=42)
-                            model.fit(X, y)
-                            
-                            latest_row = df.iloc[-1]
-                            latest_features = X.tail(1)
-                            prob = float(model.predict_proba(latest_features)[0][1]) * 100
-
-                            current_price = float(latest_row['close'])
-                            target_price = round(current_price * 1.05, 2)
-
-                            prediction_results.append({
-                                "Symbol": sym,
-                                "Latest Date": latest_row['trade_date'],
-                                "Current Price (Rs)": round(current_price, 2),
-                                "Target Price (+5% Rs)": target_price,
-                                "AI Probability (%)": f"{round(prob, 2)}%",
-                                "RSI (14)": round(latest_row['RSI'], 1),
-                                "RVOL": round(latest_row['RVOL'], 2),
-                                "Signal": "STRONG BUY (+5% Target)" if prob >= 50 else "HOLD / WATCH"
-                            })
-                    conn.close()
-
-                    if prediction_results:
-                        res_df = pd.DataFrame(prediction_results)
-                        st.success("Live AI Prediction Scan Completed Successfully!")
-                        st.dataframe(res_df, use_container_width=True)
-                    else:
-                        st.warning("ڈیٹا بیس میں موجود تاریخی سیریز ناکافی ہے۔ براہ کرم لائیو ڈیٹا سنک رن کریں۔")
+                    st.warning("تجزیے کے لیے درکار تاریخی ڈیٹا ناکافی ہے۔")
 
 # --- MODULE 2: LONG-TERM INVESTING ---
 elif module_choice == "2. Long-Term Investing Module":
@@ -220,7 +227,7 @@ elif module_choice == "2. Long-Term Investing Module":
 
 # --- MODULE 3: COMPANY SEARCH & INSPECTOR ---
 elif module_choice == "3. Company Search & Inspector":
-    st.title("🔍 Live Data Inspector")
+    st.title("🔍 Data Inspector & Archive Viewer")
     conn = terminal.get_connection()
     try:
         companies_df = pd.read_sql("SELECT symbol FROM companies", conn)
@@ -233,9 +240,9 @@ elif module_choice == "3. Company Search & Inspector":
         inspector_sym = st.selectbox("Choose Company Symbol", symbols)
         conn = terminal.get_connection()
         df_insp = pd.read_sql("SELECT trade_date, open, high, low, close, volume, data_source FROM eod_market_data WHERE symbol = ? ORDER BY trade_date DESC", conn, params=(inspector_sym,))
-        conn.close()
-        if not df_insp.empty:
-            st.dataframe(df_insp, use_container_width=True)
-            st.line_chart(df_insp.set_index('trade_date')['close'].iloc[::-1])
-        else:
-            st.warning("اس کمپنی کا لائیو ڈیٹا فیچ ہونے کا منتظر ہے۔")
+    conn.close()
+    if not df_insp.empty:
+        st.dataframe(df_insp, use_container_width=True)
+        st.line_chart(df_insp.set_index('trade_date')['close'].iloc[::-1])
+    else:
+        st.warning("اس کمپنی کا کوئی ریکارڈ موجود نہیں۔")
