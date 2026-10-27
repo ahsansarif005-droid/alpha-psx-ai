@@ -40,7 +40,6 @@ class PSXCleanInstitutionalTerminal:
             )
         ''')
 
-        # Using REPLACE or unique constraint handling for smart data upsert
         cursor.execute('''
             CREATE TABLE eod_market_data (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,17 +75,17 @@ module_choice = st.sidebar.radio(
 )
 
 st.sidebar.markdown("---")
-st.sidebar.info("System Status: **Strict Clean Mode (Zero Old Data)**")
+st.sidebar.info("System Status: **Strict Clean Mode (Zero Old Data Active)**")
 
 # --- MODULE 1: NEXT-DAY PREDICTION ---
 if module_choice == "1. Next-Day Prediction Module":
     st.title("📈 Institutional Portal & AI Prediction Engine")
-    st.markdown("Upload verified EOD historical files. Database is currently clean.")
+    st.markdown("Upload verified EOD historical files. Database is currently clean and secure.")
     st.markdown("---")
 
     # SECTION 1: FILE UPLOADER PORTAL
     st.subheader("📁 Step 1: Upload Historical / Daily EOD Data File")
-    st.markdown("اپنی مصدقہ CSV یا Excel فائل یہاں اپ لوڈ کریں[span_0](start_span)[span_0](end_span)۔ (کالمز: `symbol`, `trade_date`, `open`, `high`, `low`, `close`, `volume`)")
+    st.markdown("Upload your verified CSV or Excel file here. Required columns: `symbol`, `trade_date`, `open`, `high`, `low`, `close`, `volume`")
     
     uploaded_file = st.file_uploader("Choose CSV or Excel file", type=["csv", "xlsx"])
     
@@ -97,7 +96,7 @@ if module_choice == "1. Next-Day Prediction Module":
             else:
                 df_upload = pd.read_excel(uploaded_file)
             
-            st.success(f"فائل کامیابی سے پڑھ لی گئی ہے! کل رکارڈز: {len(df_upload)}")
+            st.success(f"File successfully read! Total records found: {len(df_upload)}")
             
             if st.button("Save Uploaded Data to Clean Database"):
                 conn = terminal.get_connection()
@@ -116,7 +115,6 @@ if module_choice == "1. Next-Day Prediction Module":
                     
                     cursor.execute("INSERT OR IGNORE INTO companies (symbol, company_name, sector) VALUES (?, ?, ?)", (sym, sym, "General"))
                     
-                    # INSERT OR REPLACE ensures matching date/symbol rows are updated, new ones are added
                     cursor.execute('''
                         INSERT OR REPLACE INTO eod_market_data 
                         (symbol, trade_date, open, high, low, close, volume, traded_value, data_source)
@@ -126,15 +124,15 @@ if module_choice == "1. Next-Day Prediction Module":
                 
                 conn.commit()
                 conn.close()
-                st.success(f"کامیابی کے ساتھ {saved_count} رکارڈز محفوظ کر دیے گئے ہیں!")
+                st.success(f"Successfully saved {saved_count} records into the permanent database!")
         except Exception as e:
-                    st.error(f"فائل پروسیسنگ میں خرابی: {e}")
+            st.error(f"Error processing file: {e}")
 
     st.markdown("---")
 
     # SECTION 2: AI PREDICTION SCAN
     st.subheader("🤖 Step 2: Run AI Prediction & Top 10-15 Screening")
-    st.markdown("جب تک آپ ڈیٹا اپ لوڈ نہیں کریں گے، یہ ماڈل رن نہیں ہوگا۔")
+    st.markdown("Run Machine Learning screening on uploaded data to filter top conviction stocks for +5% targets.")
 
     if st.button("Run AI Prediction & Filter Top Stocks"):
         conn = terminal.get_connection()
@@ -147,7 +145,7 @@ if module_choice == "1. Next-Day Prediction Module":
             
         if total_rows == 0:
             conn.close()
-            st.warning("⚠️ ڈیٹا بیس بالکل خالی ہے۔ براہ کرم پہلے اوپر سٹیپ 1 میں اپنی اصلی ڈیٹا فائل اپ لوڈ کریں!")
+            st.warning("⚠️ Database is completely empty. Please upload your EOD data file in Step 1 above first!")
         else:
             try:
                 companies = pd.read_sql("SELECT symbol FROM companies WHERE is_active = 1", conn)
@@ -157,7 +155,7 @@ if module_choice == "1. Next-Day Prediction Module":
             all_predictions = []
             for sym in companies['symbol']:
                 df = pd.read_sql("SELECT * FROM eod_market_data WHERE symbol = ? ORDER BY trade_date ASC", conn, params=(sym,))
-                if len(df) < 15: # Minimum history check
+                if len(df) < 15:
                     continue
                 
                 df['MA20'] = df['close'].rolling(20).mean()
@@ -219,7 +217,7 @@ if module_choice == "1. Next-Day Prediction Module":
                     mime="text/csv"
                 )
             else:
-                st.warning("اپ لوڈ کردہ ڈیٹا میں ہر کمپنی کے لیے کم از کم 15 دن کا تاریخی ریکارڈ ہونا ضروری ہے۔")
+                st.warning("Insufficient historical data found per company for model analysis. Ensure at least 15 daily records per symbol.")
 
 # --- MODULE 2: LONG-TERM INVESTING ---
 elif module_choice == "2. Long-Term Investing Module":
@@ -233,7 +231,7 @@ elif module_choice == "2. Long-Term Investing Module":
     if not companies_df.empty:
         st.dataframe(companies_df, use_container_width=True)
     else:
-        st.info("کوئی کمپنی موجود نہیں۔")
+        st.info("No companies registered in database yet.")
 
 # --- MODULE 3: COMPANY SEARCH & INSPECTOR ---
 elif module_choice == "3. Company Search & Inspector":
@@ -255,6 +253,6 @@ elif module_choice == "3. Company Search & Inspector":
             st.dataframe(df_insp, use_container_width=True)
             st.line_chart(df_insp.set_index('trade_date')['close'].iloc[::-1])
         else:
-            st.warning("اس کمپنی کا کوئی ریکارڈ موجود نہیں۔")
+            st.warning("No historical records found for this company.")
     else:
-        st.info("ڈیٹا بیس خالی ہے۔")
+        st.info("Database is empty.")
